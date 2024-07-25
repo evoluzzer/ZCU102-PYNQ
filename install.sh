@@ -16,59 +16,8 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#    Input Arguments
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-USAGE="${RED} usage: ${NC}  sudo ./install -b '{KV260 | KR260 | KD240}'"
-
-if [ "$#" -ne 2 ]; then
-   echo -e $USAGE
-   exit 0 
-fi
-
-while getopts b: flag
-do
-    case "${flag}" in
-        b) board=${OPTARG};;
-        *) echo -e $USAGE; exit 0;;
-    esac
-done
-
-case $board in
-	"KV260") echo -e ;;
-	"KR260") echo -e ;;
-	"KD240") echo -e ;;
-	*) echo -e $USAGE; exit 0;;
-esac
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-source /etc/lsb-release
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#    Check ubuntu version 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-case $DISTRIB_RELEASE in
-        20.04)
-                echo -e "${RED}This version of Kria-PYNQ is not compatible with Ubuntu 20.04 please checkout tag v1.0 with the command${NC}"
-                echo -e "\n\t\tgit checkout tags/v1.0\n"
-                exit 1
-                ;;
-        22.04)
-                echo -e "${GREEN}Ubuntu version 22.04 and Kria-PYNQ v3.0 version match${NC}"
-                ;;
-        *)
-                echo -e "${RED}Incompatible version of Ubuntu with Kria-PYNQ. Or unable to determine distribution version from /etc/lsb-release${NC}"
-                exit 1
-                ;;
-esac
-
-
 echo -e "${GREEN}Installing PYNQ, this process takes around 25 minutes ${NC}"
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#    Autorestart services
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 echo -e "${YELLOW} Extracting archive pynq-v3.0-binaries.tar.gz${NC}"
 # Get the pynq binaries
@@ -83,8 +32,8 @@ popd
 
 ARCH=aarch64
 HOME=/root
-PYNQ_JUPYTER_NOTEBOOKS=$(readlink -f ~)/jupyter_notebooks
-BOARD=$board
+PYNQ_JUPYTER_NOTEBOOKS=/home/$LOGNAME/jupyter_notebooks
+BOARD=ZCU102
 PYNQ_VENV=/usr/local/share/pynq-venv
 
 # Get PYNQ SDbuild Packages
@@ -117,7 +66,7 @@ apt update
 
 apt-get -o DPkg::Lock::Timeout=10 update && \
 apt-get install -y python3.10-venv python3-cffi libssl-dev libcurl4-openssl-dev \
-  portaudio19-dev libcairo2-dev libdrm-xlnx-dev libopencv-dev python3-opencv graphviz i2c-tools \
+  portaudio19-dev libcairo2-dev libdrm-dev libopencv-dev python3-opencv graphviz i2c-tools \
   fswebcam libboost-all-dev python3-dev python3-pip
 
 # Install PYNQ Virtual Environment 
@@ -127,7 +76,7 @@ cat > $PYNQ_VENV/pip.conf <<EOT
 [install]
 no-build-isolation = yes
 EOT
-./pre.sh
+./pre.sh # needed?
 ./qemu.sh
 popd
 
@@ -186,11 +135,12 @@ echo "$BOARD" > /etc/xocl.txt
 pushd dts/
 make
 mkdir -p /usr/local/share/pynq-venv/pynq-dts/
-cp insert_dtbo.py pynq.dtbo /usr/local/share/pynq-venv/pynq-dts/
-echo "python3 /usr/local/share/pynq-venv/pynq-dts/insert_dtbo.py" >> /etc/profile.d/pynq_venv.sh
+cp insert_dtbo.py pynq.dtbo /usr/local/share/pynq-venv/pynq-dts/ # comment?
+echo "python3 /usr/local/share/pynq-venv/pynq-dts/insert_dtbo.py" >> /etc/profile.d/pynq_venv.sh # comment?
 
 source /etc/profile.d/pynq_venv.sh
 popd
+
 
 # =================== Notebooks ===========================
 # Install example notebooks using the board 
@@ -198,22 +148,22 @@ popd
 # onto which board.
 # =========================================================
 
-if [[ "$board" == "KV260" ]]
-then
-	echo "KV260 notebooks"
+#if [[ "$board" == "KV260" ]]
+#then
+#	echo "KV260 notebooks"
 	#Install PYNQ-HelloWorld
-	python3 -m pip install pynq_helloworld --no-build-isolation 
+	python3 -m pip install pynq_helloworld --no-build-isolation
 
 	#Install base overlay
-	python3 -m pip install .
+#	python3 -m pip install .
 	
 	# Install composable overlays
-	pushd /tmp
-	rm -rf ./PYNQ_Composable_Pipeline
-	git clone https://github.com/Xilinx/PYNQ_Composable_Pipeline.git -b v1.1.0-dev
-	#git clone https://github.com/Xilinx/PYNQ_Composable_Pipeline.git 
-	python3 -m pip install PYNQ_Composable_Pipeline/ --no-use-pep517
-	popd
+#	pushd /tmp
+#	rm -rf ./PYNQ_Composable_Pipeline
+#	git clone https://github.com/Xilinx/PYNQ_Composable_Pipeline.git -b v1.1.0-dev
+#	git clone https://github.com/Xilinx/PYNQ_Composable_Pipeline.git
+#	python3 -m pip install PYNQ_Composable_Pipeline/ --no-use-pep517
+#	popd
 
 	# Install Pynq Peripherals
 	python3 -m pip install git+https://github.com/Xilinx/PYNQ_Peripherals.git
@@ -221,31 +171,31 @@ then
 	# Install DPU-PYNQ
 	yes Y | apt remove --purge vitis-ai-runtime
 	python3 -m pip install pynq-dpu==2.5 --no-build-isolation
-fi
+#fi
 
-if [[ "$board" == "KR260" ]]
-then
-	echo "KR260 notebooks"
+#if [[ "$board" == "KR260" ]]
+#then
+#	echo "KR260 notebooks"
 	#Install PYNQ-HelloWorld
-	python3 -m pip install pynq_helloworld --no-build-isolation 
+#	python3 -m pip install pynq_helloworld --no-build-isolation
 
 	# Install DPU-PYNQ
-	yes Y | apt remove --purge vitis-ai-runtime
-	python3 -m pip install pynq-dpu==2.5 --no-build-isolation
-fi
+#	yes Y | apt remove --purge vitis-ai-runtime
+#	python3 -m pip install pynq-dpu==2.5 --no-build-isolation
+#fi
 
-if [[ "$board" == "KD240" ]]
-then
-      python3 -m pip install IPython # I'm not sure if this is required?
-      git clone https://github.com/MakarenaLabs/DPU-PYNQ.git
-      pushd DPU-PYNQ
-      pip3 install -e . --no-build-isolation
+#if [[ "$board" == "KD240" ]]
+#then
+#      python3 -m pip install IPython # I'm not sure if this is required?
+#      git clone https://github.com/MakarenaLabs/DPU-PYNQ.git
+#      pushd DPU-PYNQ
+#      pip3 install -e . --no-build-isolation
       
       # copy the notebooks
-      cp -r pynq_dpu/kd240_notebooks /root/jupyter_notebooks/
-      cp pynq_dpu/kd240_notebooks/dpu.* /usr/lib
-      popd
-fi
+#      cp -r pynq_dpu/kd240_notebooks /root/jupyter_notebooks/
+#      cp pynq_dpu/kd240_notebooks/dpu.* /usr/lib
+#      popd
+#fi
 
 # Deliver all notebooks
 yes Y | pynq-get-notebooks -p $PYNQ_JUPYTER_NOTEBOOKS -f
@@ -260,21 +210,21 @@ sed -i "s/\/home\/xilinx\/jupyter_notebooks\/common/\./g" $PYNQ_JUPYTER_NOTEBOOK
 sed -i "s/\/home\/xilinx\/jupyter_notebooks\/common/\./g" $PYNQ_JUPYTER_NOTEBOOKS/common/usb_webcam.ipynb
 
 
-for notebook in $PYNQ_JUPYTER_NOTEBOOKS/common/*.ipynb; do
-    sed -i "s/pynq.overlays.base/kv260/g" $notebook
-    sed -i "s/PMODB/PMODA/g" $notebook
-done
+#for notebook in $PYNQ_JUPYTER_NOTEBOOKS/common/*.ipynb; do
+#    sed -i "s/pynq.overlays.base/kv260/g" $notebook
+#    sed -i "s/PMODB/PMODA/g" $notebook
+#done
 
-if [[ "$board" == "KV260" ]]
-then
-	for notebook in $PYNQ_JUPYTER_NOTEBOOKS/pynq_peripherals/*/*.ipynb; do
-	    sed -i "s/pynq.overlays.base/kv260/g" $notebook
-	    sed -i "s/PMODB/PMODA/g" $notebook
-	done
-fi
+#if [[ "$board" == "KV260" ]]
+#then
+#	for notebook in $PYNQ_JUPYTER_NOTEBOOKS/pynq_peripherals/*/*.ipynb; do
+#	    sed -i "s/pynq.overlays.base/kv260/g" $notebook
+#	    sed -i "s/PMODB/PMODA/g" $notebook
+#	done
+#fi
 
-sed -i 's/Specifically a RALink WiFi dongle commonly used with \\n//g' $PYNQ_JUPYTER_NOTEBOOKS/common/wifi.ipynb
-sed -i 's/Raspberry Pi kits is connected into the board.//g' $PYNQ_JUPYTER_NOTEBOOKS/common/wifi.ipynb
+#sed -i 's/Specifically a RALink WiFi dongle commonly used with \\n//g' $PYNQ_JUPYTER_NOTEBOOKS/common/wifi.ipynb
+#sed -i 's/Raspberry Pi kits is connected into the board.//g' $PYNQ_JUPYTER_NOTEBOOKS/common/wifi.ipynb
 
 # Patch microblaze to use virtualenv libraries
 sed -i "s/opt\/microblaze/usr\/local\/share\/pynq-venv\/bin/g" /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq/lib/pynqmicroblaze/rpc.py
@@ -283,16 +233,16 @@ sed -i "s/opt\/microblaze/usr\/local\/share\/pynq-venv\/bin/g" /usr/local/share/
 # Remove unnecessary notebooks
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-if [[ "$board" == "KV260" ]]
-then
+#if [[ "$board" == "KV260" ]]
+#then
 	rm -rf $PYNQ_JUPYTER_NOTEBOOKS/pynq_peripherals/app* $PYNQ_JUPYTER_NOTEBOOKS/pynq_peripherals/grove_joystick
-fi
+#fi
 
-if [[ "$board" == "KR260" ]]
-then
-	rm -rf $PYNQ_JUPYTER_NOTEBOOKS/common/zynq_clocks.ipynb	
-	rm -rf $PYNQ_JUPYTER_NOTEBOOKS/common/overlay_download.ipynb	
-fi
+#if [[ "$board" == "KR260" ]]
+#then
+#	rm -rf $PYNQ_JUPYTER_NOTEBOOKS/common/zynq_clocks.ipynb
+#	rm -rf $PYNQ_JUPYTER_NOTEBOOKS/common/overlay_download.ipynb
+#fi
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 # Change notebooks folder ownership and permissions
@@ -323,20 +273,20 @@ echo "  exit" >> selftest.sh
 echo "fi" >> selftest.sh
 echo "source /etc/profile.d/pynq_venv.sh" >> selftest.sh
 
-if [[ "$board" == "KV260" ]]
-then
-	echo "pushd /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_composable/runtime_tests" >> selftest.sh
-	echo "python3 -m pytest test_apps.py" >> selftest.sh
-	echo "python3 -m pytest test_composable.py" >> selftest.sh
-	echo "python3 -m pytest test_mmio_partial_bitstreams.py" >> selftest.sh
-	echo "popd" >> selftest.sh
-	echo "python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests" >> selftest.sh
-fi
+#if [[ "$board" == "KV260" ]]
+#then
+#	echo "pushd /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_composable/runtime_tests" >> selftest.sh
+#	echo "python3 -m pytest test_apps.py" >> selftest.sh
+#	echo "python3 -m pytest test_composable.py" >> selftest.sh
+#	echo "python3 -m pytest test_mmio_partial_bitstreams.py" >> selftest.sh
+#	echo "popd" >> selftest.sh
+#	echo "python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests" >> selftest.sh
+#fi
 
-if [[ "$board" == "KR260" ]]
-then
-	echo "python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests" >> selftest.sh
-fi
+#if [[ "$board" == "KR260" ]]
+#then
+#	echo "python3 -m pytest /usr/local/share/pynq-venv/lib/python3.10/site-packages/pynq_dpu/tests" >> selftest.sh
+#fi
 chmod a+x ./selftest.sh
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
